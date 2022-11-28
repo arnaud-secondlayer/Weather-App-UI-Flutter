@@ -46,32 +46,24 @@ class Meteo {
   bool get isEmpty => hours.isEmpty;
   bool get isNotEmpty => hours.isNotEmpty;
 
-  Condition get now => hours.first;
-  ConditionDay get today => days.first;
+  Condition get now {
+    final now = DateTime.now();
+    return hours.firstWhere((element) => element.dateTime.day == now.day && element.dateTime.hour >= now.hour);
+  }
+
+  ConditionDay get today {
+    final now = DateTime.now();
+    return days.firstWhere((element) => element.date.day == now.day);
+  }
 }
 
 class MeteoApi {
   static Future<Meteo> getWeather(String city) async {
-    // https://api.open-meteo.com/v1/forecast?latitude=35.95&longitude=-86.67&hourly=precipitation,weathercode&daily=timezone=auto
-    // final url = Uri.https('api.open-meteo.com', '/v1/forecast', {
-    //   'latitude': '35.95',
-    //   'longitude': '-86.67',
-    //   'hourly': 'precipitation,weathercode,temperature_2m',
-    //   'daily': 'precipitation_sum,weathercode,temperature_2m_min,temperature_2m_max',
-    //   'timezone': 'auto',
-    // });
     final url = Uri.parse(
         'https://api.open-meteo.com/v1/forecast?latitude=35.95&longitude=-86.67&hourly=precipitation,weathercode,temperature_2m&daily=precipitation_sum,weathercode,temperature_2m_min,temperature_2m_max&timezone=auto');
 
-    print(url);
-
     final response = await http.get(url);
-    print(response.statusCode);
-    if (response.statusCode == 200) {
-      print(response.body.length);
-      return _parseResponse(response.body);
-    }
-    return Meteo.empty();
+    return response.statusCode == 200 ? _parseResponse(response.body) : Meteo.empty();
 
     // return _defaultMeteo();
   }
@@ -85,6 +77,7 @@ class MeteoApi {
     final days = <ConditionDay>[];
     for (int index = 0; index < daysTime.length; index++) {
       final wmoCode = daily['weathercode'][index];
+      print(wmoCode);
       days.add(ConditionDay(
         DateTime.parse(daysTime[index]),
         _wmoCodes[wmoCode] ?? 'Unknown',
@@ -112,65 +105,6 @@ class MeteoApi {
   }
 
   static Meteo _defaultMeteo() => _parseResponse(_defaultJson);
-
-  // static OneCallWeather _defaultWeather() {
-  //   return OneCallWeather(
-  //       currentWeather: OneCallCurrentWeather(
-  //         iconID: "//openweathermap.org/img/wn/10d.png",
-  //         mainDescription: "Clear sky",
-  //         temp: 15,
-  //       ),
-  //       hourlyWeather: [
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //         OneCallHourlyWeather(mainDescription: 'clear', temp: 15, windSpeed: 0, precipitationChance: 22, iconID: "//openweathermap.org/img/wn/10d.png"),
-  //       ]);
-  // }
-
-  // static Weather _convert(OneCallWeather weather) {
-  //   final currentWeather = weather.currentWeather!;
-  //   final hourlyWeather = weather.hourlyWeather!;
-  //   final hour = hourlyWeather
-  //       .map((w) => {
-  //             'temp_c': w!.temp!.toDouble(),
-  //             'wind_kph': w.windSpeed!.toDouble(),
-  //             'chance_of_rain': w.precipitationChance!.toDouble(),
-  //             'condition': {'icon': w.iconID, 'text': w.mainDescription}
-  //           })
-  //       .toList();
-  //   return Weather(
-  //       icon: currentWeather.iconID!,
-  //       text: currentWeather.mainDescription!,
-  //       maxTemp: currentWeather.temp!.toInt(),
-  //       minTemp: currentWeather.temp!.toInt(),
-  //       hour: hour);
-  // }
-  // }
 }
 
 const Map<int, String> _wmoCodes = {
