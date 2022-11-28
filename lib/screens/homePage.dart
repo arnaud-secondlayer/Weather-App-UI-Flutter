@@ -34,6 +34,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     print(state);
     switch (state) {
       case AppLifecycleState.resumed:
+        setState(() {
+          _weather = Meteo.empty();
+        });
         await getWeather(cityName);
         break;
       case AppLifecycleState.inactive:
