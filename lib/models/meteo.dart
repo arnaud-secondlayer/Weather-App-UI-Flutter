@@ -150,7 +150,7 @@ const Map<int, IconData> _wmoIcons = {
   55: FontAwesomeIcons.umbrella,
   56: FontAwesomeIcons.umbrella,
   57: FontAwesomeIcons.umbrella,
-  61: FontAwesomeIcons.snowflake,
+  61: FontAwesomeIcons.umbrella,
   63: FontAwesomeIcons.umbrella,
   65: FontAwesomeIcons.umbrella,
   66: FontAwesomeIcons.umbrella,

@@ -34,9 +34,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     print(state);
     switch (state) {
       case AppLifecycleState.resumed:
-        setState(() {
-          _weather = Meteo.empty();
-        });
+        // setState(() {
+        //   _weather = Meteo.empty();
+        // });
         await getWeather(cityName);
         break;
       case AppLifecycleState.inactive:
@@ -110,7 +110,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   FaIcon(_weather.now.iconData, color: Colors.blue.shade800),
                   Text(
                     "  ${_weather.now.temp.round()}˚C",
-                    style: GoogleFonts.questrial(color: Colors.blue.shade800, fontSize: size.height * 0.08),
+                    style: GoogleFonts.questrial(color: Colors.blue.shade800, fontSize: size.height * 0.07),
                   )
                 ])
               : SizedBox(
@@ -132,7 +132,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               padding: EdgeInsets.only(top: size.height * 0.005, left: size.width * 0.01, right: size.width * 0.01),
               child: Align(
                 child: Text(
-                  _weather.hours.first.caption,
+                  _weather.now.caption,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.questrial(color: Colors.black87, fontSize: size.height * 0.03, fontWeight: FontWeight.bold),
                 ),
@@ -196,7 +196,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Widget buildHoursForecast(size, bool isDarkMode) {
     final now = DateTime.now();
-    final hours = _weather.hours.where((w) => w.dateTime.hour > now.hour && w.dateTime.day == now.day);
+    // TODO: we should summarize, not skip
+    final hours = _weather.hours.where((w) => w.dateTime.hour % 2 == 0 && (w.dateTime.hour >= now.hour || w.dateTime.day > now.day)).take(12);
 
     return Container(
       decoration: BoxDecoration(borderRadius: const BorderRadius.all(Radius.circular(10)), color: Colors.white.withOpacity(0.05)),
@@ -243,6 +244,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
+  static String _hourToString(int hour) => hour <= 9 ? '0$hour' : '$hour';
+
   Widget buildHourForecast(Condition w, size, bool isDarkMode) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,15 +253,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         Stack(
           children: [
             Padding(
-              padding: EdgeInsets.only(right: size.width * 0.25),
-              child: Align(alignment: Alignment.topCenter, child: FaIcon(w.iconData, color: Colors.blue.shade800)),
+              padding: EdgeInsets.only(right: size.width * 0.77, top: size.height * 0.01, bottom: size.height * 0.01),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Text('${_hourToString(w.dateTime.hour)}:00', style: GoogleFonts.questrial(color: Colors.black, fontSize: size.height * 0.025)),
+              ),
             ),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: size.width * 0.02, vertical: size.height * 0.01),
-              child: Text(
-                '${w.dateTime.hour}:00',
-                style: GoogleFonts.questrial(color: Colors.black, fontSize: size.height * 0.025),
-              ),
+              padding: EdgeInsets.only(right: size.width * 0.25),
+              child: Align(alignment: Alignment.topCenter, child: FaIcon(w.iconData, color: Colors.blue.shade800)),
             ),
             Align(
               alignment: Alignment.centerRight,
@@ -284,19 +287,20 @@ Widget buildDayForecast(ConditionDay w, size, bool isDarkMode) {
       Stack(
         children: [
           Padding(
-            padding: EdgeInsets.only(right: size.width * 0.25),
-            child: Align(alignment: Alignment.topCenter, child: FaIcon(w.iconData, color: Colors.blue.shade800)),
-          ),
-          Padding(
             padding: EdgeInsets.symmetric(horizontal: size.width * 0.02, vertical: size.height * 0.01),
             child: Text(
               _weekDayString(w.date.weekday),
               style: GoogleFonts.questrial(color: Colors.black, fontSize: size.height * 0.025),
             ),
           ),
+          Padding(
+            padding: EdgeInsets.only(right: size.width * 0.25),
+            child: Align(alignment: Alignment.topCenter, child: FaIcon(w.iconData, color: Colors.blue.shade800)),
+          ),
           Align(
+            alignment: Alignment.centerRight,
             child: Padding(
-              padding: EdgeInsets.only(left: size.width * 0.15, top: size.height * 0.01),
+              padding: EdgeInsets.only(right: size.width * 0.3, top: size.height * 0.01),
               child: Text(
                 '${w.minTemp.toInt()}˚C',
                 style: GoogleFonts.questrial(color: Colors.black38, fontSize: size.height * 0.025),
