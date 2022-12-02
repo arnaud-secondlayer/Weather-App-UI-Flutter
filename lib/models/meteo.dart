@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/widgets.dart';
@@ -9,25 +10,59 @@ export 'package:font_awesome_flutter/src/icon_data.dart';
 // https://open-meteo.com/en
 // https://api.open-meteo.com/v1/forecast?latitude=35.95&longitude=-86.67&hourly=precipitation,weathercode&timezone=auto
 
+enum WmoCode {
+  clear(0, 'Clear', FontAwesomeIcons.sun),
+  mainlyClear(1, 'Mainly clear', FontAwesomeIcons.cloudSun),
+  partlyCloudy(2, 'Partly cloudy', FontAwesomeIcons.cloud),
+  overcast(3, 'Overcast', FontAwesomeIcons.cloud),
+  fog(45, 'Fog', FontAwesomeIcons.smog),
+  depositingFog(48, 'Depositing fog', FontAwesomeIcons.smog),
+  lightDrizzle(51, 'Light drizzle', FontAwesomeIcons.cloudSunRain),
+  moderateDrizzle(53, 'Moderate drizzle', FontAwesomeIcons.cloudSunRain),
+  denseDrizzle(55, 'Dense drizzle', FontAwesomeIcons.cloudSunRain),
+  lightFreezingDrizzle(56, 'Light freezing drizzle', FontAwesomeIcons.cloudSunRain),
+  denseFreezingDrizzle(57, 'Dense freezing drizzle', FontAwesomeIcons.cloudSunRain),
+  slightRain(61, 'Slight rain', FontAwesomeIcons.umbrella),
+  moderateRain(63, 'Moderate rain', FontAwesomeIcons.umbrella),
+  heavyRain(65, 'Heavy rain', FontAwesomeIcons.umbrella),
+  lightFreezingRain(66, 'Light freezing rain', FontAwesomeIcons.umbrella),
+  heavyFreezingRain(67, 'Heavy freezing rain', FontAwesomeIcons.umbrella),
+  slightSnow(71, 'Slight snow', FontAwesomeIcons.snowflake),
+  moderateSnow(73, 'Moderate snow', FontAwesomeIcons.snowflake),
+  heavySnow(75, 'Heavy snow', FontAwesomeIcons.snowflake),
+  snowGrains(77, 'Snow grains', FontAwesomeIcons.snowflake),
+  slightRainShowers(80, 'Slight rain showers', FontAwesomeIcons.umbrella),
+  moderateRainShowers(81, 'Moderate rain showers', FontAwesomeIcons.umbrella),
+  violentRainShowers(82, 'Violent rain showers', FontAwesomeIcons.umbrella),
+  slightSnowShowers(85, 'Slight snow showers', FontAwesomeIcons.snowflake),
+  heavySnowShowers(86, 'Heavy snow showers', FontAwesomeIcons.snowflake),
+  thunderstorm(95, 'Thunderstorm', FontAwesomeIcons.bolt),
+  thunderstormWithSlightHail(96, 'Thunderstorm with slight hail', FontAwesomeIcons.bolt),
+  thunderstormWithHeavyHail(99, 'Thunderstorm with heavy hail', FontAwesomeIcons.bolt);
+
+  const WmoCode(this.code, this.caption, this.iconData);
+  final int code;
+  final String caption;
+  final IconData iconData;
+}
+
 class Condition {
   DateTime dateTime;
-  String caption;
-  IconData iconData;
+  WmoCode code;
   double temp;
   double precipitation;
 
-  Condition(this.dateTime, this.caption, this.temp, this.precipitation, this.iconData);
+  Condition(this.dateTime, this.code, this.temp, this.precipitation);
 }
 
 class ConditionDay {
   DateTime date;
-  String caption;
-  IconData iconData;
+  WmoCode code;
   double minTemp;
   double maxTemp;
   double precipitation;
 
-  ConditionDay(this.date, this.caption, this.minTemp, this.maxTemp, this.precipitation, this.iconData);
+  ConditionDay(this.date, this.code, this.minTemp, this.maxTemp, this.precipitation);
 }
 
 class Meteo {
@@ -58,9 +93,9 @@ class Meteo {
 }
 
 class MeteoApi {
-  static Future<Meteo> getWeather(String city) async {
+  static Future<Meteo> getWeather(Location loc) async {
     final url = Uri.parse(
-        'https://api.open-meteo.com/v1/forecast?latitude=35.95&longitude=-86.67&hourly=precipitation,weathercode,temperature_2m&daily=precipitation_sum,weathercode,temperature_2m_min,temperature_2m_max&timezone=auto');
+        'https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&hourly=precipitation,weathercode,temperature_2m&daily=precipitation_sum,weathercode,temperature_2m_min,temperature_2m_max&timezone=auto');
 
     final response = await http.get(url);
     return response.statusCode == 200 ? _parseResponse(response.body) : Meteo.empty();
@@ -76,15 +111,13 @@ class MeteoApi {
 
     final days = <ConditionDay>[];
     for (int index = 0; index < daysTime.length; index++) {
-      final wmoCode = daily['weathercode'][index];
-      print(wmoCode);
+      final wmoCode = WmoCode.values.firstWhere((element) => element.code == daily['weathercode'][index]);
       days.add(ConditionDay(
         DateTime.parse(daysTime[index]),
-        _wmoCodes[wmoCode] ?? 'Unknown',
+        wmoCode,
         daily['temperature_2m_min'][index] as double,
         daily['temperature_2m_max'][index] as double,
         daily['precipitation_sum'][index] as double,
-        _wmoIcons[wmoCode] ?? FontAwesomeIcons.questionCircle,
       ));
     }
 
@@ -92,13 +125,12 @@ class MeteoApi {
     final hoursTime = List<String>.from(hourly['time']);
     final hours = <Condition>[];
     for (int index = 0; index < hoursTime.length; index++) {
-      final wmoCode = hourly['weathercode'][index];
+      final wmoCode = WmoCode.values.firstWhere((element) => element.code == hourly['weathercode'][index]);
       hours.add(Condition(
         DateTime.parse(hoursTime[index]),
-        _wmoCodes[wmoCode] ?? 'Unknown',
+        wmoCode,
         hourly['temperature_2m'][index] as double,
         hourly['precipitation'][index] as double,
-        _wmoIcons[wmoCode] ?? FontAwesomeIcons.questionCircle,
       ));
     }
     return Meteo(days: days, hours: hours);
@@ -107,67 +139,67 @@ class MeteoApi {
   static Meteo _defaultMeteo() => _parseResponse(_defaultJson);
 }
 
-const Map<int, String> _wmoCodes = {
-  0: 'Clear',
-  1: 'Mainly clear',
-  2: 'Partly cloudy',
-  3: 'Overcast',
-  45: 'Fog',
-  48: 'Depositing fog',
-  51: 'Light drizzle',
-  53: 'Moderate drizzle',
-  55: 'Dense drizzle',
-  56: 'Light freezing drizzle',
-  57: 'Dense freezing drizzle',
-  61: 'Slight rain',
-  63: 'Moderate rain',
-  65: 'Heavy rain',
-  66: 'Light freezing rain',
-  67: 'Heavy freezing rain',
-  71: 'Slight snow',
-  73: 'Moderate snow',
-  75: 'Heavy snow',
-  77: 'Snow grains',
-  80: 'Slight rain showers',
-  81: 'Moderate rain showers',
-  82: 'Violent rain showers',
-  85: 'Slight snow showers',
-  86: 'Heavy snow showers',
-  95: 'Thunderstorm',
-  96: 'Thunderstorm with slight hail',
-  99: 'Thunderstorm with heavy hail',
-};
+// const Map<int, String> _wmoCodes = {
+//   0: 'Clear',
+//   1: 'Mainly clear',
+//   2: 'Partly cloudy',
+//   3: 'Overcast',
+//   45: 'Fog',
+//   48: 'Depositing fog',
+//   51: 'Light drizzle',
+//   53: 'Moderate drizzle',
+//   55: 'Dense drizzle',
+//   56: 'Light freezing drizzle',
+//   57: 'Dense freezing drizzle',
+//   61: 'Slight rain',
+//   63: 'Moderate rain',
+//   65: 'Heavy rain',
+//   66: 'Light freezing rain',
+//   67: 'Heavy freezing rain',
+//   71: 'Slight snow',
+//   73: 'Moderate snow',
+//   75: 'Heavy snow',
+//   77: 'Snow grains',
+//   80: 'Slight rain showers',
+//   81: 'Moderate rain showers',
+//   82: 'Violent rain showers',
+//   85: 'Slight snow showers',
+//   86: 'Heavy snow showers',
+//   95: 'Thunderstorm',
+//   96: 'Thunderstorm with slight hail',
+//   99: 'Thunderstorm with heavy hail',
+// };
 
-const Map<int, IconData> _wmoIcons = {
-  0: FontAwesomeIcons.sun,
-  1: FontAwesomeIcons.cloudSun,
-  2: FontAwesomeIcons.cloud,
-  3: FontAwesomeIcons.smog,
-  45: FontAwesomeIcons.smog,
-  48: FontAwesomeIcons.smog,
-  51: FontAwesomeIcons.umbrella,
-  53: FontAwesomeIcons.umbrella,
-  55: FontAwesomeIcons.umbrella,
-  56: FontAwesomeIcons.umbrella,
-  57: FontAwesomeIcons.umbrella,
-  61: FontAwesomeIcons.umbrella,
-  63: FontAwesomeIcons.umbrella,
-  65: FontAwesomeIcons.umbrella,
-  66: FontAwesomeIcons.umbrella,
-  67: FontAwesomeIcons.umbrella,
-  71: FontAwesomeIcons.snowflake,
-  73: FontAwesomeIcons.snowflake,
-  75: FontAwesomeIcons.snowflake,
-  77: FontAwesomeIcons.snowflake,
-  80: FontAwesomeIcons.umbrella,
-  81: FontAwesomeIcons.umbrella,
-  82: FontAwesomeIcons.umbrella,
-  85: FontAwesomeIcons.snowflake,
-  86: FontAwesomeIcons.snowflake,
-  95: FontAwesomeIcons.bolt,
-  96: FontAwesomeIcons.bolt,
-  99: FontAwesomeIcons.bolt,
-};
+// const Map<int, IconData> _wmoIcons = {
+//   0: FontAwesomeIcons.sun,
+//   1: FontAwesomeIcons.cloudSun,
+//   2: FontAwesomeIcons.cloud,
+//   3: FontAwesomeIcons.smog,
+//   45: FontAwesomeIcons.smog,
+//   48: FontAwesomeIcons.smog,
+//   51: FontAwesomeIcons.umbrella,
+//   53: FontAwesomeIcons.umbrella,
+//   55: FontAwesomeIcons.umbrella,
+//   56: FontAwesomeIcons.umbrella,
+//   57: FontAwesomeIcons.umbrella,
+//   61: FontAwesomeIcons.umbrella,
+//   63: FontAwesomeIcons.umbrella,
+//   65: FontAwesomeIcons.umbrella,
+//   66: FontAwesomeIcons.umbrella,
+//   67: FontAwesomeIcons.umbrella,
+//   71: FontAwesomeIcons.snowflake,
+//   73: FontAwesomeIcons.snowflake,
+//   75: FontAwesomeIcons.snowflake,
+//   77: FontAwesomeIcons.snowflake,
+//   80: FontAwesomeIcons.umbrella,
+//   81: FontAwesomeIcons.umbrella,
+//   82: FontAwesomeIcons.umbrella,
+//   85: FontAwesomeIcons.snowflake,
+//   86: FontAwesomeIcons.snowflake,
+//   95: FontAwesomeIcons.bolt,
+//   96: FontAwesomeIcons.bolt,
+//   99: FontAwesomeIcons.bolt,
+// };
 
 const String _defaultJson = '''
 {

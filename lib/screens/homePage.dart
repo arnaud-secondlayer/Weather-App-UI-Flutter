@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:weather_app/models/meteo.dart';
 
@@ -9,9 +10,38 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
+class AutocompleteAddress extends StatelessWidget {
+  final String initialValue;
+  const AutocompleteAddress(this.initialValue, {super.key});
+
+  static const List<String> _kOptions = <String>[
+    'aardvark',
+    'bobcat',
+    'chameleon',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Autocomplete<String>(
+      initialValue: TextEditingValue(text: initialValue),
+      optionsBuilder: (TextEditingValue textEditingValue) {
+        if (textEditingValue.text == '') {
+          return const Iterable<String>.empty();
+        }
+        return _kOptions.where((String option) {
+          return option.contains(textEditingValue.text.toLowerCase());
+        });
+      },
+      onSelected: (String selection) {
+        debugPrint('You just selected $selection');
+      },
+    );
+  }
+}
+
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Meteo _weather = Meteo.empty();
-  String cityName = "Nolensville"; //! keep it empty
+  final String _address = "246 Norfolk Ln, Nolensville"; //! keep it empty
 
   DateTime now = DateTime.now();
 
@@ -19,11 +49,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    getWeather(cityName);
+    getWeather(_address);
   }
 
-  Future<void> getWeather(String city) async {
-    final _weatherTemp = await MeteoApi.getWeather(city);
+  Future<void> getWeather(String address) async {
+    final _weatherTemp = await locationFromAddress(address).then((locations) => MeteoApi.getWeather(locations.first));
     setState(() {
       _weather = _weatherTemp;
     });
@@ -31,13 +61,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
-    print(state);
     switch (state) {
       case AppLifecycleState.resumed:
-        // setState(() {
-        //   _weather = Meteo.empty();
-        // });
-        await getWeather(cityName);
+        await getWeather(_address);
         break;
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
@@ -95,8 +121,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       Padding(
         padding: EdgeInsets.only(top: 0, left: size.width * 0.01, right: size.width * 0.01),
         child: Align(
+          // child: AutocompleteAddress(_address),
           child: Text(
-            cityName,
+            _address,
             textAlign: TextAlign.center,
             style: GoogleFonts.questrial(color: Colors.black, fontSize: size.height * 0.03, fontWeight: FontWeight.normal),
           ),
@@ -107,7 +134,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         child: Align(
           child: _weather.isNotEmpty
               ? Row(children: [
-                  FaIcon(_weather.now.iconData, color: Colors.blue.shade800),
+                  FaIcon(_weather.now.code.iconData, color: Colors.blue.shade800),
                   Text(
                     "  ${_weather.now.temp.round()}˚C",
                     style: GoogleFonts.questrial(color: Colors.blue.shade800, fontSize: size.height * 0.07),
@@ -132,7 +159,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               padding: EdgeInsets.only(top: size.height * 0.005, left: size.width * 0.01, right: size.width * 0.01),
               child: Align(
                 child: Text(
-                  _weather.now.caption,
+                  _weather.now.code.caption,
                   textAlign: TextAlign.center,
                   style: GoogleFonts.questrial(color: Colors.black87, fontSize: size.height * 0.03, fontWeight: FontWeight.bold),
                 ),
@@ -261,7 +288,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             ),
             Padding(
               padding: EdgeInsets.only(right: size.width * 0.25),
-              child: Align(alignment: Alignment.topCenter, child: FaIcon(w.iconData, color: Colors.blue.shade800)),
+              child: Align(alignment: Alignment.topCenter, child: FaIcon(w.code.iconData, color: Colors.blue.shade800)),
             ),
             Align(
               alignment: Alignment.centerRight,
@@ -295,7 +322,7 @@ Widget buildDayForecast(ConditionDay w, size, bool isDarkMode) {
           ),
           Padding(
             padding: EdgeInsets.only(right: size.width * 0.25),
-            child: Align(alignment: Alignment.topCenter, child: FaIcon(w.iconData, color: Colors.blue.shade800)),
+            child: Align(alignment: Alignment.topCenter, child: FaIcon(w.code.iconData, color: Colors.blue.shade800)),
           ),
           Align(
             alignment: Alignment.centerRight,
