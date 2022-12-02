@@ -223,8 +223,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Widget buildHoursForecast(size, bool isDarkMode) {
     final now = DateTime.now();
-    // TODO: we should summarize, not skip
-    final hours = _weather.hours.where((w) => w.dateTime.hour % 2 == 0 && (w.dateTime.hour >= now.hour || w.dateTime.day > now.day)).take(12);
+    final totalHours = _weather.hours.where((w) => (w.dateTime.hour >= now.hour || w.dateTime.day > now.day)).take(24).toList();
+    final hours = <Condition>[];
+    for (int i = 1; i < totalHours.length; i += 2) {
+      hours.add(Condition.merge(totalHours[i], totalHours[i - 1]));
+    }
 
     return Container(
       decoration: BoxDecoration(borderRadius: const BorderRadius.all(Radius.circular(10)), color: Colors.white.withOpacity(0.05)),

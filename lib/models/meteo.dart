@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
@@ -53,6 +54,12 @@ class Condition {
   double precipitation;
 
   Condition(this.dateTime, this.code, this.temp, this.precipitation);
+
+  Condition.merge(Condition c0, Condition c1)
+      : dateTime = c0.dateTime.millisecondsSinceEpoch < c1.dateTime.millisecondsSinceEpoch ? c0.dateTime : c1.dateTime,
+        code = c0.code.code > c1.code.code ? c0.code : c1.code,
+        temp = (c0.temp + c1.temp) / 2,
+        precipitation = max(c0.precipitation, c1.precipitation);
 }
 
 class ConditionDay {
