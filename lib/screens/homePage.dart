@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,9 +24,7 @@ class AsyncOperation<T> {
   final Completer<T> _completer = Completer<T>();
 
   Future<T> doOperation() => _completer.future;
-
   void finishOperation(T result) => _completer.complete(result);
-
   void errorHappened(error) => _completer.completeError(error);
 }
 
@@ -58,17 +57,15 @@ class AutocompleteAddress extends StatelessWidget {
   final AddressCallback _callback;
   const AutocompleteAddress(this.initialValue, this._callback, {super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Autocomplete<String>(
-      initialValue: TextEditingValue(text: initialValue),
-      optionsBuilder: _optionsBuilder,
-      onSelected: _onSelected,
-      fieldViewBuilder: _fieldViewBuilder,
-    );
-  }
-
   final String initialValue;
+
+  @override
+  Widget build(BuildContext context) => Autocomplete<String>(
+        initialValue: TextEditingValue(text: initialValue),
+        optionsBuilder: _optionsBuilder,
+        onSelected: _callback,
+        fieldViewBuilder: _fieldViewBuilder,
+      );
 
   Widget _fieldViewBuilder(BuildContext buildContext, TextEditingController controller, FocusNode focusNode, void Function() f) {
     return TextField(
@@ -82,34 +79,49 @@ class AutocompleteAddress extends StatelessWidget {
     );
   }
 
-  void _onSelected(String selection) {
-    debugPrint('You just selected $selection');
-    _callback(selection);
-  }
-
   Future<Iterable<String>> _optionsBuilder(TextEditingValue textEditingValue) {
     if (textEditingValue.text == '') return Future.value(<String>[]);
     return Lookup().lookup(textEditingValue.text);
   }
 }
 
-typedef LocationCallback = Function(location.LocationData, String locationName);
+typedef LocationCallback = Function(geocoding.Location, String locationName);
 
 class ButtonBar extends StatelessWidget {
   final LocationCallback _callback;
+  final List<String> _locations;
 
-  const ButtonBar(this._callback, {super.key});
+  const ButtonBar(this._locations, this._callback, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      key: key,
-      child: const Text('Here'),
-      onPressed: _onPressed,
-    );
+    return Row(children: [
+      TextButton(
+        key: key,
+        child: const Text('Here'),
+        onPressed: _onPressedHere,
+      ),
+      ...history
+    ]);
   }
 
-  void _onPressed() async {
+  Iterable<Widget> get history => _locations.map((locationString) => TextButton(
+        key: key,
+        child: Text(locationToCaption(locationString)),
+        onPressed: () => _onPressedLocation(locationString),
+      ));
+
+  static String locationToCaption(String locationString) {
+    var index = locationString.indexOf(RegExp(r'(,)'));
+    if (index == -1) index = locationString.length;
+    return locationString.substring(0, min(15, index));
+  }
+
+  void _onPressedLocation(String address) async {
+    return geocoding.locationFromAddress(address).then((locations) => _callback(locations.first, address));
+  }
+
+  void _onPressedHere() async {
     debugPrint('Pressed here button');
     final loc = location.Location();
 
@@ -138,13 +150,20 @@ class ButtonBar extends StatelessWidget {
     final locData = await loc.getLocation();
     final landmarks = await geocoding.placemarkFromCoordinates(locData.latitude!, locData.longitude!);
     debugPrint('LocationData: ${locData.latitude} ${locData.longitude} // $landmarks');
-    _callback(locData, landmarks.first.locality ?? landmarks.first.name ?? 'Here');
+
+    final geoLocation = await geocoding.Location(latitude: locData.latitude!, longitude: locData.longitude!, timestamp: DateTime.now());
+    _callback(geoLocation, landmarks.first.locality ?? landmarks.first.name ?? 'Here');
   }
 }
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Meteo _weather = Meteo.empty();
-  String _address = "Nolensville, TN";
+  String _address = 'Nolensville, TN';
+  final List<String> _history = [
+    'Nolensville, TN',
+    'Paris, France',
+    'New York, USA',
+  ];
   // String _address = "Paris, France";
 
   @override
@@ -155,28 +174,30 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    getWeather(_address);
+    _updateWeatherFromAddress(_address);
   }
 
-  Future<void> getWeather(String address) async {
-    final _weatherTemp = await geocoding.locationFromAddress(address).then((locations) => MeteoApi.getWeather(locations.first));
-    setState(() {
-      _weather = _weatherTemp;
-    });
+  Future<void> _updateWeatherFromAddress(String address) async {
+    final locations = await geocoding.locationFromAddress(address);
+    _updateWeather(locations.first, address);
   }
 
-  void _onSelected(String address) {
-    setState(() {
-      _address = address;
-    });
-    getWeather(_address);
+  void _updateHistory(String locationName) {
+    final alreadyInList = _history.indexWhere((element) => element == locationName);
+    if (alreadyInList == -1) {
+      _history.removeLast();
+    } else {
+      _history.removeAt(alreadyInList);
+    }
+    _history.add(locationName);
   }
 
-  void _onLocationData(location.LocationData data, String locationName) async {
+  Future<void> _updateWeather(geocoding.Location location, String locationName) async {
     setState(() {
       _address = locationName;
+      _updateHistory(locationName);
     });
-    final _weatherTemp = await MeteoApi.getWeather(geocoding.Location(latitude: data.latitude!, longitude: data.longitude!, timestamp: DateTime.now()));
+    final _weatherTemp = await MeteoApi.getWeather(location);
     setState(() {
       _weather = _weatherTemp;
     });
@@ -186,7 +207,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     switch (state) {
       case AppLifecycleState.resumed:
-        await getWeather(_address);
+        await _updateWeatherFromAddress(_address);
         break;
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
@@ -198,12 +219,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     if (_weather.nowAndAfter.isEmpty) {
-      return Scaffold();
+      return const Scaffold();
     }
 
-    Size size = MediaQuery.of(context).size;
-    var brightness = MediaQuery.of(context).platformBrightness;
-    bool isDarkMode = brightness == Brightness.dark;
+    final size = MediaQuery.of(context).size;
+    final brightness = MediaQuery.of(context).platformBrightness;
+    final isDarkMode = brightness == Brightness.dark;
     return Scaffold(
       body: Center(
         child: Container(
@@ -242,9 +263,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget buildNow(BuildContext context, Size size, bool isDarkMode) {
-    // _currentTimezone ??= 'America/Chicago';
-    print('buildNow for $_address');
-    final autoComplete = AutocompleteAddress(_address, _onSelected);
+    final autoComplete = AutocompleteAddress(_address, _updateWeatherFromAddress);
     final today = _weather.now;
     return Wrap(children: [
       Padding(
@@ -261,7 +280,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       Padding(
         padding: EdgeInsets.only(top: 0, left: size.width * 0.01, right: size.width * 0.01),
         child: Align(
-          child: ButtonBar(_onLocationData),
+          child: ButtonBar(_history, _updateWeather),
         ),
       ),
       Padding(

@@ -184,19 +184,12 @@ class Meteo {
 
   List<Condition> get nowAndAfter {
     final now = tz.TZDateTime.now(tz.local);
-    print(">>> $now ${DateTime.now()}");
     return hours.where((element) => element.dateTime.isAfter(now)).toList();
   }
-
-  // ConditionDay get today {
-  //   final now = DateTime.now();
-  //   return days.firstWhere((element) => element.date.day == now.day);
-  // }
 }
 
 class MeteoApi {
   static Future<Meteo> getWeather(Location loc) async {
-    print('Long: ${loc.longitude} // lat: ${loc.latitude}');
     final url = Uri.parse(
         'https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&hourly=precipitation,weathercode,temperature_2m,apparent_temperature&daily=precipitation_sum,weathercode,temperature_2m_min,temperature_2m_max&timezone=auto');
 
