@@ -55,13 +55,11 @@ typedef AddressCallback = Function(String);
 
 class AutocompleteAddress extends StatelessWidget {
   final AddressCallback _callback;
-  const AutocompleteAddress(this.initialValue, this._callback, {super.key});
-
-  final String initialValue;
+  const AutocompleteAddress(this._callback, {super.key});
 
   @override
   Widget build(BuildContext context) => Autocomplete<String>(
-        initialValue: TextEditingValue(text: initialValue),
+        initialValue: const TextEditingValue(),
         optionsBuilder: _optionsBuilder,
         onSelected: _callback,
         fieldViewBuilder: _fieldViewBuilder,
@@ -73,7 +71,7 @@ class AutocompleteAddress extends StatelessWidget {
       focusNode: focusNode,
       onEditingComplete: f,
       decoration: InputDecoration(
-        hintText: "Search Somewhere",
+        hintText: "Search for a location",
         suffixIcon: IconButton(icon: const Icon(Icons.clear), onPressed: () => controller.text = ""),
       ),
     );
@@ -90,31 +88,53 @@ typedef LocationCallback = Function(geocoding.Location, String locationName);
 class ButtonBar extends StatelessWidget {
   final LocationCallback _callback;
   final List<String> _locations;
+  final AutocompleteAddress _autocompleteAddress;
+  final Size _size;
 
-  const ButtonBar(this._locations, this._callback, {super.key});
+  const ButtonBar(this._size, this._autocompleteAddress, this._locations, this._callback, {super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      TextButton(
-        key: key,
-        child: const Text('Here'),
-        onPressed: _onPressedHere,
-      ),
-      ...history
-    ]);
+    return ListTileTheme(
+        dense: true,
+        minVerticalPadding: 0,
+        child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [_button('Here', onPressed: _onPressedHere), ...history],
+          ),
+          children: [_autocompleteAddress.build(context)],
+        ));
   }
 
-  Iterable<Widget> get history => _locations.map((locationString) => TextButton(
-        key: key,
-        child: Text(locationToCaption(locationString)),
-        onPressed: () => _onPressedLocation(locationString),
-      ));
+  TextButton _button(String caption, {required void Function() onPressed}) {
+    return TextButton(
+      key: key,
+      child: Text(
+        caption,
+        overflow: TextOverflow.fade,
+        softWrap: false,
+      ),
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        maximumSize: Size(_size.width * 0.25, double.infinity),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+
+  Iterable<Widget> get history {
+    return _locations.map((locationString) => _button(
+          locationToCaption(locationString),
+          onPressed: () => _onPressedLocation(locationString),
+        ));
+  }
 
   static String locationToCaption(String locationString) {
     var index = locationString.indexOf(RegExp(r'(,)'));
     if (index == -1) index = locationString.length;
-    return locationString.substring(0, min(15, index));
+    return locationString.substring(0, index);
   }
 
   void _onPressedLocation(String address) async {
@@ -263,24 +283,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget buildNow(BuildContext context, Size size, bool isDarkMode) {
-    final autoComplete = AutocompleteAddress(_address, _updateWeatherFromAddress);
+    final autoComplete = AutocompleteAddress(_updateWeatherFromAddress);
     final today = _weather.now;
     return Wrap(children: [
       Padding(
         padding: EdgeInsets.only(top: 0, left: size.width * 0.01, right: size.width * 0.01),
         child: Align(
-          child: autoComplete,
-          // child: Text(
-          //   _address,
-          //   textAlign: TextAlign.center,
-          //   style: GoogleFonts.questrial(color: Colors.black, fontSize: size.height * 0.03, fontWeight: FontWeight.normal),
-          // ),
-        ),
-      ),
-      Padding(
-        padding: EdgeInsets.only(top: 0, left: size.width * 0.01, right: size.width * 0.01),
-        child: Align(
-          child: ButtonBar(_history, _updateWeather),
+          child: ButtonBar(size, autoComplete, _history, _updateWeather),
         ),
       ),
       Padding(
