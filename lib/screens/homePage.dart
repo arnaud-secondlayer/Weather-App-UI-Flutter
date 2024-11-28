@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:geocoding/geocoding.dart' as geocoding;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:location/location.dart' as location;
@@ -12,12 +12,12 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_native_timezone/flutter_native_timezone.dart';
 
 class HomePage extends StatefulWidget {
-  HomePage({Key? key}) : super(key: key) {
+  HomePage({super.key}) {
     tz.initializeTimeZones();
   }
 
   @override
-  _HomePageState createState() => _HomePageState();
+  HomePageState createState() => HomePageState();
 }
 
 class AsyncOperation<T> {
@@ -98,34 +98,43 @@ class ButtonBar extends StatelessWidget {
     return ListTileTheme(
         dense: true,
         minVerticalPadding: 0,
+        contentPadding: EdgeInsets.zero,
         child: ExpansionTile(
           tilePadding: EdgeInsets.zero,
           title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [_button('Here', onPressed: _onPressedHere), ...history],
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [_iconButton(FontAwesomeIcons.locationArrow, onPressed: _onPressedHere), ...history],
           ),
           children: [_autocompleteAddress.build(context)],
         ));
   }
 
-  TextButton _button(String caption, {required void Function() onPressed}) {
+  IconButton _iconButton(IconData icon, {required void Function() onPressed}) {
+    return IconButton(
+      key: key,
+      icon: Icon(icon, color: Colors.blue.shade800, size: _size.width * 0.035),
+      onPressed: onPressed,
+    );
+  }
+
+  TextButton _textButton(String caption, {required void Function() onPressed}) {
     return TextButton(
       key: key,
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        maximumSize: Size(_size.width * 0.22, double.infinity),
+        visualDensity: VisualDensity.compact,
+      ),
       child: Text(
         caption,
         overflow: TextOverflow.fade,
         softWrap: false,
       ),
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        maximumSize: Size(_size.width * 0.25, double.infinity),
-        visualDensity: VisualDensity.compact,
-      ),
     );
   }
 
   Iterable<Widget> get history {
-    return _locations.map((locationString) => _button(
+    return _locations.map((locationString) => _textButton(
           locationToCaption(locationString),
           onPressed: () => _onPressedLocation(locationString),
         ));
@@ -176,7 +185,7 @@ class ButtonBar extends StatelessWidget {
   }
 }
 
-class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+class HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Meteo _weather = Meteo.empty();
   String _address = 'Nolensville, TN';
   final List<String> _history = [
@@ -209,7 +218,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     } else {
       _history.removeAt(alreadyInList);
     }
-    _history.add(locationName);
+    _history.insert(0, locationName);
   }
 
   Future<void> _updateWeather(geocoding.Location location, String locationName) async {
@@ -217,9 +226,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _address = locationName;
       _updateHistory(locationName);
     });
-    final _weatherTemp = await MeteoApi.getWeather(location);
+    final weatherTemp = await MeteoApi.getWeather(location);
     setState(() {
-      _weather = _weatherTemp;
+      _weather = weatherTemp;
     });
   }
 
@@ -232,6 +241,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
         break;
     }
   }
@@ -287,7 +297,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final today = _weather.now;
     return Wrap(children: [
       Padding(
-        padding: EdgeInsets.only(top: 0, left: size.width * 0.01, right: size.width * 0.01),
+        padding: const EdgeInsets.only(top: 0, left: 0, right: 0),
         child: Align(
           child: ButtonBar(size, autoComplete, _history, _updateWeather),
         ),
@@ -558,7 +568,7 @@ String _weekDayString(int d) {
 
 class DismissKeyboard extends StatelessWidget {
   final Widget child;
-  const DismissKeyboard({Key? key, required this.child}) : super(key: key);
+  const DismissKeyboard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
