@@ -307,7 +307,7 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
         child: Align(
           child: _weather.isNotEmpty
               ? Row(children: [
-                  FaIcon(today.code.iconData, color: Colors.blue.shade800),
+                  FaIcon(today.code.iconData, color: Colors.blue.shade800, size: size.height * 0.04),
                   Text(
                     "  ${today.temp.round()}˚C",
                     style: GoogleFonts.questrial(color: Colors.blue.shade800, fontSize: size.height * 0.07),
@@ -460,15 +460,15 @@ Widget buildHourForecast(Condition w, Size size, bool isDarkMode) {
       Stack(
         children: [
           Padding(
-            padding: EdgeInsets.only(right: size.width * 0.75, top: size.height * 0.01, bottom: size.height * 0.01),
+            padding: EdgeInsets.only(right: size.width * 0.75, top: size.height * 0.01),
             child: Align(
               alignment: Alignment.topCenter,
               child: Text('${_hourToString(w.dateTime.hour)}:00', style: GoogleFonts.questrial(color: Colors.black, fontSize: size.height * 0.025)),
             ),
           ),
           Padding(
-            padding: EdgeInsets.only(right: size.width * 0.25),
-            child: Align(alignment: Alignment.topCenter, child: FaIcon(w.code.iconData, color: Colors.blue.shade800)),
+            padding: EdgeInsets.only(right: size.width * 0.25, top: size.height * 0.0125),
+            child: Align(alignment: Alignment.bottomCenter, child: FaIcon(w.code.iconData, color: Colors.blue.shade800)),
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -517,8 +517,8 @@ Widget _dayForecastTitle(ConditionDay w, Size size, bool isDarkMode) {
             ),
           ),
           Padding(
-            padding: EdgeInsets.only(right: size.width * 0.25),
-            child: Align(alignment: Alignment.topCenter, child: FaIcon(w.code.iconData, color: Colors.blue.shade800)),
+            padding: EdgeInsets.only(right: size.width * 0.25, top: size.height * 0.0125),
+            child: Align(alignment: Alignment.center, child: FaIcon(w.code.iconData, color: Colors.blue.shade800)),
           ),
           Align(
             alignment: Alignment.centerRight,
